@@ -3,40 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso Seguro - TuBingo Pro</title>
+    <title>Acceso Seguro - TuBingo Pro Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background: #121214; color: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .login-container { background: #1a1a1e; padding: 40px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); width: 100%; max-width: 400px; border: 1px solid #29292e; }
-        h2 { text-align: center; margin-bottom: 10px; color: #00e676; }
-        p.subtitle { text-align: center; color: #a4a4a8; font-size: 14px; margin-bottom: 30px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: #e1e1e6; font-size: 14px; }
-        input { width: 100%; padding: 12px; background: #202024; border: 1px solid #29292e; border-radius: 6px; color: #ffffff; font-size: 16px; outline: none; }
-        input:focus { border-color: #00e676; }
-        button { width: 100%; padding: 14px; background: #00e676; border: none; border-radius: 6px; color: #0f0f11; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        button:hover { background: #00c853; }
-        button:disabled { background: #4a4a4a; color: #a4a4a8; cursor: not-allowed; }
-        .error-box { background: #fc8181; color: #1a202c; padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; display: none; font-weight: 500; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; 
+        }
+        body { 
+            background: #121214; 
+            color: #ffffff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+        }
+        .login-container { 
+            background: #1a1a1e; 
+            padding: 40px; 
+            border-radius: 10px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5); 
+            width: 100%; 
+            max-width: 400px; 
+            border: 1px solid #29292e; 
+        }
+        h2 { 
+            text-align: center; 
+            margin-bottom: 5px; 
+            color: #00e676; 
+            font-size: 26px;
+            letter-spacing: 0.5px;
+        }
+        p.subtitle { 
+            text-align: center; 
+            color: #a4a4a8; 
+            font-size: 14px; 
+            margin-bottom: 30px; 
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            color: #e1e1e6; 
+            font-size: 14px; 
+        }
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            background: #202024; 
+            border: 1px solid #29292e; 
+            border-radius: 6px; 
+            color: #ffffff; 
+            font-size: 16px; 
+            outline: none; 
+            transition: border-color 0.2s;
+        }
+        input:focus { 
+            border-color: #00e676; 
+        }
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            background: #00e676; 
+            border: none; 
+            border-radius: 6px; 
+            color: #0f0f11; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 10px; 
+            transition: background 0.2s;
+        }
+        button:hover { 
+            background: #00c853; 
+        }
+        button:disabled { 
+            background: #4a4a4a; 
+            color: #a4a4a8; 
+            cursor: not-allowed; 
+        }
+        .error-box { 
+            background: #fc8181; 
+            color: #1a202c; 
+            padding: 12px; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            margin-bottom: 20px; 
+            display: none; 
+            font-weight: 500; 
+            text-align: center;
+        }
+        .forgot-password {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #0071e3;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .forgot-password:hover {
+            color: #3b9eff;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
+
     <div class="login-container">
         <h2>TuBingo Pro</h2>
         <p class="subtitle">Panel de Control General</p>
+        
         <div id="error-message" class="error-box"></div>
+        
         <form id="form-login">
             <div class="form-group">
-                <label>Correo Electrónico</label>
+                <label for="login-email">Correo Electrónico</label>
                 <input type="email" id="login-email" required placeholder="ejemplo@correo.com">
             </div>
             <div class="form-group">
-                <label>Contraseña</label>
+                <label for="login-pass">Contraseña</label>
                 <input type="password" id="login-pass" required placeholder="••••••••••••">
             </div>
             <button type="submit" id="btn-submit">Ingresar al Sistema</button>
         </form>
+
+        <a href="#" onclick="recuperarPasswordSoporte()" class="forgot-password">¿Olvidaste tu contraseña?</a>
     </div>
 
     <script src="js/config.js"></script>
