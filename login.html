@@ -4,198 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acceso Seguro - TuBingo Pro</title>
-    <!-- Incluir la librería oficial de Supabase desde CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        body {
-            background: #121214;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .login-container {
-            background: #1a1a1e;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            width: 100%;
-            max-width: 400px;
-            border: 1px solid #29292e;
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 10px;
-            color: #00e676;
-        }
-        p.subtitle {
-            text-align: center;
-            color: #a4a4a8;
-            font-size: 14px;
-            margin-bottom: 30px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #e1e1e6;
-            font-size: 14px;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            background: #202024;
-            border: 1px solid #29292e;
-            border-radius: 6px;
-            color: #ffffff;
-            font-size: 16px;
-            outline: none;
-            transition: border 0.2s;
-        }
-        input:focus {
-            border-color: #00e676;
-        }
-        button {
-            width: 100%;
-            padding: 14px;
-            background: #00e676;
-            border: none;
-            border-radius: 6px;
-            color: #0f0f11;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-            margin-top: 10px;
-        }
-        button:hover {
-            background: #00c853;
-        }
-        button:disabled {
-            background: #4a4a4a;
-            color: #a4a4a8;
-            cursor: not-allowed;
-        }
-        .error-box {
-            background: #fc8181;
-            color: #1a202c;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 14px;
-            margin-bottom: 20px;
-            display: none;
-            font-weight: 500;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #121214; color: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-container { background: #1a1a1e; padding: 40px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); width: 100%; max-width: 400px; border: 1px solid #29292e; }
+        h2 { text-align: center; margin-bottom: 10px; color: #00e676; }
+        p.subtitle { text-align: center; color: #a4a4a8; font-size: 14px; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #e1e1e6; font-size: 14px; }
+        input { width: 100%; padding: 12px; background: #202024; border: 1px solid #29292e; border-radius: 6px; color: #ffffff; font-size: 16px; outline: none; }
+        input:focus { border-color: #00e676; }
+        button { width: 100%; padding: 14px; background: #00e676; border: none; border-radius: 6px; color: #0f0f11; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #00c853; }
+        button:disabled { background: #4a4a4a; color: #a4a4a8; cursor: not-allowed; }
+        .error-box { background: #fc8181; color: #1a202c; padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; display: none; font-weight: 500; }
     </style>
 </head>
 <body>
-
     <div class="login-container">
         <h2>TuBingo Pro</h2>
         <p class="subtitle">Panel de Control General</p>
-
-        <!-- Caja de errores visibles en pantalla -->
         <div id="error-message" class="error-box"></div>
-
         <form id="form-login">
             <div class="form-group">
-                <label for="login-email">Correo Electrónico</label>
+                <label>Correo Electrónico</label>
                 <input type="email" id="login-email" required placeholder="ejemplo@correo.com">
             </div>
             <div class="form-group">
-                <label for="login-pass">Contraseña</label>
+                <label>Contraseña</label>
                 <input type="password" id="login-pass" required placeholder="••••••••••••">
             </div>
             <button type="submit" id="btn-submit">Ingresar al Sistema</button>
         </form>
     </div>
 
-    <script>
-       const SUPABASE_URL = "https://zauyayrcrywazucdvmia.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXlheXJjcnl3YXp1Y2R2bWlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMzMyNDMsImV4cCI6MjA5NzYwOTI0M30.BS-QCXTm5WDsevO2evSZPndIRhIGBeaAuF1opDY_7a4";
-
-        // Inicializar el cliente global de Supabase
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        // 2. LOGICA DE AUTENTICACIÓN Y REDIRECCIÓN
-        document.getElementById('form-login').onsubmit = async (e) => {
-            // !! EVITA QUE LA PÁGINA SE RECARGUE Y BORRE LOS DATOS !!
-            e.preventDefault(); 
-
-            const emailBox = document.getElementById('login-email');
-            const passBox = document.getElementById('login-pass');
-            const errorBox = document.getElementById('error-message');
-            const btnSubmit = document.getElementById('btn-submit');
-
-            // Ocultar errores previos
-            errorBox.style.display = "none";
-            errorBox.textContent = "";
-
-            const email = emailBox.value.trim();
-            const password = passBox.value;
-
-            // Bloquear botón y mostrar carga
-            btnSubmit.textContent = "Validando Credenciales...";
-            btnSubmit.disabled = true;
-
-            try {
-                // Paso A: Autenticar el usuario en el módulo de seguridad (auth)
-                const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password
-                });
-
-                if (authError) throw authError;
-
-                const userUID = authData.user.id;
-                console.log("Usuario autenticado en Auth. UID generado:", userUID);
-
-                // Paso B: Consultar su rol asignado en la tabla pública de perfiles
-                const { data: perfilData, error: perfilError } = await _supabase
-                    .from('perfiles')
-                    .select('rol, suscripcion_vence')
-                    .eq('id', userUID)
-                    .single();
-
-                if (perfilError) {
-                    throw new Error("Autenticado correctamente, pero no se encontró un rol asignado en la tabla perfiles. " + perfilError.message);
-                }
-
-                // Paso C: Validar y Redireccionar según el rol exacto
-                const userRol = perfilData.rol;
-                console.log("Rol obtenido exitosamente:", userRol);
-
-                alert("¡Acceso concedido como: " + userRol.toUpperCase() + "!");
-
-                if (userRol === 'admin') {
-                    window.location.href = 'admin.html';
-                } else if (userRol === 'vendedor') {
-                    window.location.href = 'vendedor.html';
-                } else {
-                    window.location.href = 'cliente.html';
-                }
-
-            } catch (err) {
-                console.error("Error detectado en el proceso:", err);
-                
-                // Mostrar el error en la tarjeta roja para que no se limpie la pantalla
-                errorBox.textContent = err.message || "Error desconocido de conexión.";
-                errorBox.style.display = "block";
-
-                // Reactivar el botón para permitir reintentar
-                btnSubmit.textContent = "Ingresar al Sistema";
-                btnSubmit.disabled = false;
-            }
-        };
-    </script>
+    <script src="js/config.js"></script>
+    <script src="js/login.js"></script>
 </body>
 </html>
