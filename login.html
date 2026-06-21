@@ -1,122 +1,199 @@
-<!-- login.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acceso Seguro - TuBingo Pro</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <!-- Incluir la librería oficial de Supabase desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #121214;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-container {
+            background: #1a1a1e;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid #29292e;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #00e676;
+        }
+        p.subtitle {
+            text-align: center;
+            color: #a4a4a8;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e1e1e6;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #202024;
+            border: 1px solid #29292e;
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 16px;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input:focus {
+            border-color: #00e676;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #00e676;
+            border: none;
+            border-radius: 6px;
+            color: #0f0f11;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #00c853;
+        }
+        button:disabled {
+            background: #4a4a4a;
+            color: #a4a4a8;
+            cursor: not-allowed;
+        }
+        .error-box {
+            background: #fc8181;
+            color: #1a202c;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: none;
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
-    <div class="auth-container">
-        <h1 id="auth-title">Iniciar Sesión</h1>
-        <p class="auth-subtitle">Suite de Procesamiento Profesional</p>
-        
-        <div id="msg-box" class="msg-box" style="display: none;"></div>
 
-        <!-- Formulario Login -->
+    <div class="login-container">
+        <h2>TuBingo Pro</h2>
+        <p class="subtitle">Panel de Control General</p>
+
+        <!-- Caja de errores visibles en pantalla -->
+        <div id="error-message" class="error-box"></div>
+
         <form id="form-login">
-            <div class="input-group">
-                <label>Correo Electrónico</label>
-                <input type="email" id="login-email" required autocomplete="username">
+            <div class="form-group">
+                <label for="login-email">Correo Electrónico</label>
+                <input type="email" id="login-email" required placeholder="ejemplo@correo.com">
             </div>
-            <div class="input-group">
-                <label>Contraseña</label>
-                <input type="password" id="login-pass" required autocomplete="current-password">
+            <div class="form-group">
+                <label for="login-pass">Contraseña</label>
+                <input type="password" id="login-pass" required placeholder="••••••••••••">
             </div>
-            <button type="submit" class="btn-auth">Ingresar al Sistema</button>
-            <p class="toggle-link"><a href="#" id="link-olvido">¿Olvidaste tu contraseña?</a></p>
-        </form>
-
-        <!-- Formulario Recuperación -->
-        <form id="form-recuperar" style="display: none;">
-            <div class="input-group">
-                <label>Ingresa tu Correo Electrónico</label>
-                <input type="email" id="recuperar-email" required>
-            </div>
-            <button type="submit" class="btn-auth">Enviar Contraseña Temporal</button>
-            <p class="toggle-link"><a href="#" id="link-regresar-login">Volver al Login</a></p>
-        </form>
-
-        <!-- Formulario Cambiar Contraseña (Post Link Temporal) -->
-        <form id="form-cambiar" style="display: none;">
-            <div class="input-group">
-                <label>Nueva Contraseña Establecida</label>
-                <input type="password" id="nueva-pass" required minlength="8">
-            </div>
-            <button type="submit" class="btn-auth">Actualizar y Autenticar</button>
+            <button type="submit" id="btn-submit">Ingresar al Sistema</button>
         </form>
     </div>
 
-    <script type="module">
-        import { loginUsuario, solicitarContrasenaTemporal, actualizarContrasenaNueva } from './js/auth.js';
-        
-        const msgBox = document.getElementById('msg-box');
-        function mostrarMsg(text, type) {
-            msgBox.textContent = text;
-            msgBox.className = `msg-box ${type}`;
-            msgBox.style.display = 'block';
-        }
+    <script>
+       const SUPABASE_URL = "https://zauyayrcrywazucdvmia.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdXlheXJjcnl3YXp1Y2R2bWlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMzMyNDMsImV4cCI6MjA5NzYwOTI0M30.BS-QCXTm5WDsevO2evSZPndIRhIGBeaAuF1opDY_7a4";
 
-        // Leer parámetros de URL para flujos de restauración o errores de suscripción
-        const params = new URLSearchParams(window.location.search);
-        if(params.get('action') === 'update_password') {
-            document.getElementById('auth-title').textContent = "Establecer Nueva Contraseña";
-            document.getElementById('form-login').style.display = 'none';
-            document.getElementById('form-cambiar').style.display = 'block';
-        } else if(params.get('error') === 'suscripcion_caducada') {
-            mostrarMsg("Tu suscripción ha expirado. Por favor, contacta a tu vendedor para renovar tu acceso.", "error");
-        } else if(params.get('error') === 'sin_suscripcion') {
-            mostrarMsg("Tu cuenta no cuenta con una licencia activa registrada aún.", "error");
-        }
+        // Inicializar el cliente global de Supabase
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Alternadores de vista (Olvido de contraseña)
-        document.getElementById('link-olvido').onclick = (e) => {
-            e.preventDefault();
-            document.getElementById('form-login').style.display = 'none';
-            document.getElementById('form-recuperar').style.display = 'block';
-            document.getElementById('auth-title').textContent = "Recuperar Acceso";
-        };
-
-        document.getElementById('link-regresar-login').onclick = (e) => {
-            e.preventDefault();
-            document.getElementById('form-recuperar').style.display = 'none';
-            document.getElementById('form-login').style.display = 'block';
-            document.getElementById('auth-title').textContent = "Iniciar Sesión";
-        };
-
-        // Envíos de Formularios
+        // 2. LOGICA DE AUTENTICACIÓN Y REDIRECCIÓN
         document.getElementById('form-login').onsubmit = async (e) => {
-            e.preventDefault();
-            mostrarMsg("Validando credenciales criptográficas...", "success");
-            try {
-                const r = await loginUsuario(document.getElementById('login-email').value, document.getElementById('login-pass').value);
-                if(r === 'admin') window.location.href = 'admin.html';
-                else if(r === 'vendedor') window.location.href = 'vendedor.html';
-                else window.location.href = 'cliente.html';
-            } catch(err) { 
-                mostrarMsg("Credenciales incorrectas, usuario deshabilitado o sin plan activo.", "error"); 
-            }
-        };
+            // !! EVITA QUE LA PÁGINA SE RECARGUE Y BORRE LOS DATOS !!
+            e.preventDefault(); 
 
-        document.getElementById('form-recuperar').onsubmit = async (e) => {
-            e.preventDefault();
-            try {
-                await solicitarContrasenaTemporal(document.getElementById('recuperar-email').value);
-                mostrarMsg("Si el correo está registrado, se ha enviado un enlace de acceso temporal.", "success");
-            } catch(err) { 
-                mostrarMsg("Error al procesar la solicitud de recuperación", "error"); 
-            }
-        };
+            const emailBox = document.getElementById('login-email');
+            const passBox = document.getElementById('login-pass');
+            const errorBox = document.getElementById('error-message');
+            const btnSubmit = document.getElementById('btn-submit');
 
-        document.getElementById('form-cambiar').onsubmit = async (e) => {
-            e.preventDefault();
+            // Ocultar errores previos
+            errorBox.style.display = "none";
+            errorBox.textContent = "";
+
+            const email = emailBox.value.trim();
+            const password = passBox.value;
+
+            // Bloquear botón y mostrar carga
+            btnSubmit.textContent = "Validando Credenciales...";
+            btnSubmit.disabled = true;
+
             try {
-                await actualizarContrasenaNueva(document.getElementById('nueva-pass').value);
-                mostrarMsg("Contraseña cambiada con éxito. Redirigiendo...", "success");
-                setTimeout(() => window.location.href = 'index.html', 2000);
-            } catch(err) { 
-                mostrarMsg("Token de recuperación expirado. Solicita un nuevo correo.", "error"); 
+                // Paso A: Autenticar el usuario en el módulo de seguridad (auth)
+                const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) throw authError;
+
+                const userUID = authData.user.id;
+                console.log("Usuario autenticado en Auth. UID generado:", userUID);
+
+                // Paso B: Consultar su rol asignado en la tabla pública de perfiles
+                const { data: perfilData, error: perfilError } = await _supabase
+                    .from('perfiles')
+                    .select('rol, suscripcion_vence')
+                    .eq('id', userUID)
+                    .single();
+
+                if (perfilError) {
+                    throw new Error("Autenticado correctamente, pero no se encontró un rol asignado en la tabla perfiles. " + perfilError.message);
+                }
+
+                // Paso C: Validar y Redireccionar según el rol exacto
+                const userRol = perfilData.rol;
+                console.log("Rol obtenido exitosamente:", userRol);
+
+                alert("¡Acceso concedido como: " + userRol.toUpperCase() + "!");
+
+                if (userRol === 'admin') {
+                    window.location.href = 'admin.html';
+                } else if (userRol === 'vendedor') {
+                    window.location.href = 'vendedor.html';
+                } else {
+                    window.location.href = 'cliente.html';
+                }
+
+            } catch (err) {
+                console.error("Error detectado en el proceso:", err);
+                
+                // Mostrar el error en la tarjeta roja para que no se limpie la pantalla
+                errorBox.textContent = err.message || "Error desconocido de conexión.";
+                errorBox.style.display = "block";
+
+                // Reactivar el botón para permitir reintentar
+                btnSubmit.textContent = "Ingresar al Sistema";
+                btnSubmit.disabled = false;
             }
         };
     </script>
