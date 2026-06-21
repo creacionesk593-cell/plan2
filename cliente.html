@@ -1,0 +1,165 @@
+<!-- cliente.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Cliente</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="dashboard-body">
+    
+    <!-- Barra de Navegación Superior con visualizador de Plan y Vencimiento -->
+    <div class="top-nav">
+        <span class="brand-title">TuBingo Pro Suite</span>
+        <div class="nav-actions">
+            <span id="user-display">Validando licencia en la nube...</span>
+            <button id="btn-logout" class="btn-logout">Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <!-- Pestañas para conmutar Apps sin recargar el ecosistema -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchApp('app1')">⚡ App 1: Vectorizador Pro</button>
+        <button class="tab-btn" onclick="switchApp('app2')">🎯 App 2: Extractor de Bingo</button>
+    </div>
+
+    <!-- Barra lateral para inyectar configuraciones JSON exclusivas en la App 2 -->
+    <div id="wrapper-app2-configs" class="config-sidebar" style="display:none;">
+        <h3>⚙️ Perfiles de Configuración</h3>
+        <p style="font-size:11px; color:#888;">Selecciona una plantilla base o personalizada:</p>
+        
+        <div class="section-list">
+            <h4>Plantillas Globales (Por Defecto)</h4>
+            <div id="lista-configs-globales" class="list-container-mini">Cargando de fábrica...</div>
+        </div>
+
+        <div class="section-list">
+            <h4>Mis Configuraciones</h4>
+            <div id="lista-configs-propias" class="list-container-mini">No has guardado perfiles aún.</div>
+            <div class="save-box">
+                <input type="text" id="nueva-config-name" placeholder="Nombre de mi config">
+                <button id="btn-save-current-config" class="btn-action-sm">Guardar Config Actual</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor del Iframe con Sandbox OWASP de alta seguridad -->
+    <div class="app-viewport">
+        <iframe id="iframe-app" src="app1.html" sandbox="allow-scripts allow-same-origin allow-downloads allow-modals"></iframe>
+    </div>
+
+    <script type="module">
+        import { verificarSesionYRol, cerrarSesion } from './js/auth.js';
+        import { obtenerConfigsGlobales, obtenerConfigsPropias, guardarConfigCliente } from './js/config-manager.js';
+
+        let usuarioActivo = null;
+
+        window.onload = async () => {
+            // El core js/auth.js valida el tiempo y redirige automáticamente a login si caducó
+            usuarioActivo = await verificarSesionYRol(['cliente', 'admin']);
+            
+            if(usuarioActivo) {
+                // Formatear fecha legible localmente
+                const fechaVence = new Date(usuarioActivo.suscripcion_vence);
+                const planTraducido = usuarioActivo.plan_activo === 'vitalicio' ? 'Mil Años (Vitalicio)' : usuarioActivo.plan_activo;
+                
+                // Renderizar la información de suscripción del cliente de forma segura en la cabecera
+                document.getElementById('user-display').innerHTML = `
+                    👤 <span style="color:#fff; font-weight:600;">${usuarioActivo.email}</span> 
+                    | Plan: <span style="color:#007bff; font-weight:bold;">${planTraducido.toUpperCase()}</span> 
+                    | Vence: <span style="color:#28a745; font-weight:bold;">${fechaVence.toLocaleDateString()} ${fechaVence.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                `;
+                
+                // Cargar repositorios de configuraciones para App 2
+                cargarListasConfiguracion();
+            }
+        };
+
+        document.getElementById('btn-logout').onclick = cerrarSesion;
+
+        // Conmutador dinámico de aplicaciones
+        window.switchApp = function(app) {
+            const iframe = document.getElementById('iframe-app');
+            const btns = document.querySelectorAll('.tab-btn');
+            const sidebar = document.getElementById('wrapper-app2-configs');
+            
+            btns.forEach(b => b.classList.remove('active'));
+            if(app === 'app1') {
+                btns[0].classList.add('active');
+                sidebar.style.display = 'none';
+                iframe.src = "app1.html";
+            } else {
+                btns[1].classList.add('active');
+                sidebar.style.display = 'block';
+                iframe.src = "app2.html";
+            }
+        };
+
+        // Consumo de datos JSON estructurados por cliente
+        async function cargarListasConfiguracion() {
+            if(!usuarioActivo) return;
+            
+            // 1. Cargar e Inyectar Configuraciones de Fábrica (Globales)
+            const globales = await obtenerConfigsGlobales();
+            const containerG = document.getElementById('lista-configs-globales');
+            containerG.innerHTML = '';
+            globales.forEach(g => {
+                const div = document.createElement('div');
+                div.className = "config-item-row";
+                div.textContent = g.nombre_config;
+                div.onclick = () => inyectarConfigEnIframe(g.json_data);
+                containerG.appendChild(div);
+            });
+
+            // 2. Cargar e Inyectar Configuraciones Propias guardadas por el Cliente
+            const propias = await obtenerConfigsPropias(usuarioActivo.id);
+            const containerP = document.getElementById('lista-configs-propias');
+            containerP.innerHTML = propias.length === 0 ? '<p style="font-size:11px;padding:5px;color:#666;">Sin perfiles guardados.</p>' : '';
+            propias.forEach(p => {
+                const div = document.createElement('div');
+                div.className = "config-item-row personal";
+                div.textContent = p.nombre_config;
+                div.onclick = () => inyectarConfigEnIframe(p.json_data);
+                containerP.appendChild(div);
+            });
+        }
+
+        // Web Messaging API segura (Canal Inter-Iframe aprobado por OWASP)
+        function inyectarConfigEnIframe(jsonData) {
+            const iframe = document.getElementById('iframe-app');
+            iframe.contentWindow.postMessage({
+                tipo: 'INYECTAR_CONFIG_BINGO',
+                data: jsonData
+            }, '*');
+        }
+
+        // Solicitar y guardar el estado JSON actual directamente de la ventana de App2
+        document.getElementById('btn-save-current-config').onclick = () => {
+            const name = document.getElementById('nueva-config-name').value.trim();
+            if(!name) return alert("Escribe un nombre para identificar tu perfil de configuración.");
+            
+            const iframe = document.getElementById('iframe-app');
+            iframe.contentWindow.postMessage({ tipo: 'SOLICITAR_CONFIG_ACTUAL' }, '*');
+            
+            window.addEventListener('message', function responder(e) {
+                if(e.data && e.data.tipo === 'RESPUESTA_CONFIG_ACTUAL') {
+                    window.removeEventListener('message', responder);
+                    guardarConfigEnNube(name, e.data.config);
+                }
+            });
+        };
+
+        async function guardarConfigEnNube(nombre, jsonConfig) {
+            try {
+                await guardarConfigCliente(usuarioActivo.id, nombre, jsonConfig);
+                document.getElementById('nueva-config-name').value = '';
+                cargarListasConfiguracion();
+                alert("¡Perfil guardado de forma segura en tu nube personal!");
+            } catch(err) { 
+                alert("Error de validación estructural: " + err.message); 
+            }
+        }
+    </script>
+</body>
+</html>
