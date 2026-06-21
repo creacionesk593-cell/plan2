@@ -1,0 +1,168 @@
+<!-- vendedor.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel Operativo de Ventas - Suscripciones</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="dashboard-body" style="overflow:auto; padding:20px;">
+    <div class="top-nav" style="margin-bottom:20px; border-radius:8px;">
+        <span class="brand-title">💼 Módulo de Gestión de Ventas</span>
+        <button id="btn-logout" class="btn-logout">Cerrar Sesión</button>
+    </div>
+
+    <div class="auth-container" style="max-width:100%; margin:0 0 20px 0; display:flex; gap:20px; flex-wrap:wrap;">
+        <!-- Formulario Crear Cliente -->
+        <div style="flex:1; min-width:300px;">
+            <h3>Alta de Nuevo Cliente</h3>
+            <form id="form-crear-cliente" style="margin-top:15px;">
+                <div class="input-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="c-email" required>
+                </div>
+                <div class="input-group">
+                    <label>Contraseña Inicial</label>
+                    <input type="password" id="c-pass" required minlength="8">
+                </div>
+                <button type="submit" class="btn-auth" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)">Registrar Cliente</button>
+            </form>
+        </div>
+
+        <!-- Activador de Planes rápidos -->
+        <div style="flex:1; min-width:300px;">
+            <h3>Asignar o Renovar Plan</h3>
+            <form id="form-asignar-plan" style="margin-top:15px;">
+                <div class="input-group">
+                    <label>Seleccionar Cliente</label>
+                    <select id="select-cliente" style="width:100%; padding:12px; background:#222; border:1px solid #444; color:white; border-radius:8px;"></select>
+                </div>
+                <div class="input-group">
+                    <label>Seleccionar Duración del Plan</label>
+                    <select id="select-plan" style="width:100%; padding:12px; background:#222; border:1px solid #444; color:white; border-radius:8px;">
+                        <option value="1_dia" data-days="1">⚡ Pase de 1 Día</option>
+                        <option value="1_mes" data-days="30">📅 Suscripción Mensual (30 Días)</option>
+                        <option value="1_ano" data-days="365">🌟 Membresía Anual (365 Días)</option>
+                        <option value="vitalicio" data-days="365000">♾️ Acceso Vitalicio (Mil Años)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-auth">Activar Suscripción Ahora</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de Clientes Activos/Vencidos -->
+    <div class="auth-container" style="max-width:100%; margin:0;">
+        <h3>Monitoreo de mis Clientes y Estados de Licencia</h3>
+        <table style="width:100%; border-collapse:collapse; margin-top:15px; text-align:left; font-size:14px;">
+            <thead>
+                <tr style="border-bottom:2px solid #333; color:#aaa;">
+                    <th style="padding:10px;">ID / Email</th>
+                    <th style="padding:10px;">Plan</th>
+                    <th style="padding:10px;">Vence el</th>
+                    <th style="padding:10px;">Estado</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-clientes"></tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { verificarSesionYRol, cerrarSesion } from './js/auth.js';
+        import { supabase } from './js/supabase-client.js';
+
+        let vendedor = null;
+
+        window.onload = async () => {
+            vendedor = await verificarSesionYRol(['vendedor', 'admin']);
+            if(vendedor) cargarMisClientes();
+        };
+
+        document.getElementById('btn-logout').onclick = cerrarSesion;
+
+        async function cargarMisClientes() {
+            // Buscamos usuarios cuyo creador sea este vendedor
+            const { data: clientes, error } = await supabase
+                .from('perfiles')
+                .select('*')
+                .eq('creado_por', vendedor.id);
+
+            if (error) return;
+
+            const tbody = document.getElementById('tabla-clientes');
+            const select = document.getElementById('select-cliente');
+            tbody.innerHTML = '';
+            select.innerHTML = '';
+
+            clientes.forEach(c => {
+                // Rellenar Select
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.email;
+                select.appendChild(opt);
+
+                // Calcular estado visual
+                const vence = c.suscripcion_vence ? new Date(c.suscripcion_vence) : null;
+                const activo = vence && vence > new Date();
+                const estadoTxt = activo ? '🟢 Activo' : (vence ? '🔴 Expirado' : '⚪ Sin Plan');
+
+                // Rellenar Tabla
+                const row = document.createElement('tr');
+                row.style.borderBottom = "1px solid #222";
+                row.innerHTML = `
+                    <td style="padding:10px;">${c.email}</td>
+                    <td style="padding:10px;"><span style="color:#007bff">${c.plan_activo || 'Ninguno'}</span></td>
+                    <td style="padding:10px; color:#aaa;">${vence ? vence.toLocaleString() : 'N/A'}</td>
+                    <td style="padding:10px; font-weight:bold;">${estadoTxt}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Crear Cliente asignándole automáticamente el ID del Vendedor como dueño comercial
+        document.getElementById('form-crear-cliente').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('c-email').value;
+            const pass = document.getElementById('c-pass').value;
+
+            // Registro en Supabase Auth pasándole meta-datos
+            const { data, error } = await supabase.auth.signUp({
+                email, password: pass,
+                options: { data: { rol_inicial: 'cliente' } }
+            });
+
+            if (error) return alert("Error al registrar: " + error.message);
+
+            // Vinculamos de quién es cliente en la tabla perfiles
+            await supabase.from('perfiles').update({ creado_por: vendedor.id }).eq('id', data.user.id);
+            
+            alert("Cliente creado de forma segura.");
+            document.getElementById('form-crear-cliente').reset();
+            cargarMisClientes();
+        };
+
+        // Procesar Activación de Licencia por RPC Seguro
+        document.getElementById('form-asignar-plan').onsubmit = async (e) => {
+            e.preventDefault();
+            const clienteId = document.getElementById('select-cliente').value;
+            const selectPlan = document.getElementById('select-plan');
+            const plan = selectPlan.value;
+            const dias = parseInt(selectPlan.options[selectPlan.selectedIndex].getAttribute('data-days'));
+
+            if(!clienteId) return alert("Primero selecciona o registra un cliente");
+
+            const { data, error } = await supabase.rpc('actualizar_suscripcion_cliente', {
+                cliente_id: clienteId,
+                plan: plan,
+                dias_validez: dias
+            });
+
+            if(error) alert("Error: " + error.message);
+            else {
+                alert("¡Licencia Actualizada Correctamente!");
+                cargarMisClientes();
+            }
+        };
+    </script>
+</body>
+</html>
