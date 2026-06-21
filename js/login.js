@@ -18,7 +18,7 @@ document.getElementById('form-login').onsubmit = async (e) => {
     btnSubmit.disabled = true;
 
     try {
-        // 1. Autenticación en Supabase Auth
+        // 1. Loguearse en Supabase Auth
         const { data: authData, error: authError } = await window._supabase.auth.signInWithPassword({
             email: email,
             password: password
@@ -26,7 +26,7 @@ document.getElementById('form-login').onsubmit = async (e) => {
 
         if (authError) throw authError;
 
-        // 2. Consulta usando tus columnas reales: rol y plan_activo
+        // 2. Traer el perfil con tus columnas reales
         const { data: perfilData, error: perfilError } = await window._supabase
             .from('perfiles')
             .select('rol, plan_activo')
@@ -34,18 +34,18 @@ document.getElementById('form-login').onsubmit = async (e) => {
             .single();
 
         if (perfilError) {
-            throw new Error("Autenticado correctamente, pero no se encontró tu registro en la tabla perfiles.");
+            throw new Error("No se encontró tu configuración de perfil en la base de datos.");
         }
         
-        // Validación de estado de cuenta
-        if (perfilData.plan_activo === 'inhabilitado') {
-            throw new Error("Esta cuenta ha sido inhabilitada temporal o permanentemente.");
+        // Validación basada en tus opciones reales de Supabase
+        if (!perfilData.plan_activo) {
+            throw new Error("Tu cuenta no tiene un plan activo asignado o está vencida.");
         }
 
         const userRol = perfilData.rol;
         alert("¡Acceso concedido como: " + userRol.toUpperCase() + "!");
 
-        // Redirección inteligente basada en el rol
+        // Redirección inteligente exacta
         if (userRol === 'admin') {
             window.location.href = 'admin.html';
         } else if (userRol === 'vendedor') {
@@ -61,12 +61,12 @@ document.getElementById('form-login').onsubmit = async (e) => {
         btnSubmit.textContent = "Ingresar al Sistema";
         btnSubmit.disabled = false;
         
-        // Si el login falló o está inhabilitado, limpiamos la sesión para evitar estados corruptos
+        // Si falla, se desloguea para no arrastrar sesiones rotas
         await window._supabase.auth.signOut();
     }
 };
 
-// Función para recuperar contraseña por correo electrónico
+// Función para el enlace "¿Olvidaste tu contraseña?"
 async function recuperarPasswordSoporte() {
     const email = prompt("Ingresa tu correo electrónico registrado para enviarte un enlace de restablecimiento:");
     if (!email) return;
@@ -77,7 +77,7 @@ async function recuperarPasswordSoporte() {
         });
 
         if (error) throw error;
-        alert("Se ha enviado un correo a tu bandeja de entrada para cambiar la contraseña.");
+        alert("Se ha enviado un correo seguro a tu bandeja de entrada para cambiar la contraseña.");
     } catch (err) {
         alert("Error al procesar la solicitud: " + err.message);
     }
