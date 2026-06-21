@@ -1,6 +1,5 @@
 // js/cliente.js
 
-// 1. ESCUDO DE CONTROL DE ACCESO INTERNO Y ROL SUPREMO
 async function verificarSesionSuite() {
     const { data: { session } } = await window._supabase.auth.getSession();
     
@@ -9,28 +8,31 @@ async function verificarSesionSuite() {
         return;
     }
 
-    // Validar rol en la base de datos pública
     const { data: perfil, error } = await window._supabase
         .from('perfiles')
-        .select('rol, email')
+        .select('rol, email, plan_activo')
         .eq('id', session.user.id)
         .single();
 
-    if (error || !perfil) {
-        document.getElementById('user-tag').textContent = session.user.email;
+    // Bloqueo inmediato si no tiene plan activo asignado
+    if (error || !perfil || !perfil.plan_activo) {
+        alert("Acceso denegado: Tu plan ha expirado o tu cuenta fue inhabilitada.");
+        await window._supabase.auth.signOut();
+        window.location.href = 'login.html';
         return;
     }
 
-    // Pintar la cuenta en la barra superior
-    document.getElementById('user-tag').textContent = perfil.email;
+    // Coloca el correo del usuario en la barra superior de la interfaz
+    const userTag = document.getElementById('user-tag');
+    if (userTag) userTag.textContent = perfil.email;
 
-    // Se enciende el botón de administrador si tienes el rango correcto
+    // Si es admin, le dejamos visible el botón para saltar al panel de control
     if (perfil.rol === 'admin') {
-        document.getElementById('btn-nav-admin').style.display = 'inline-block';
+        const btnAdmin = document.getElementById('btn-nav-admin');
+        if (btnAdmin) btnAdmin.style.display = 'inline-block';
     }
 }
 
-// 2. CONMUTADOR DE PESTAÑAS (APP 1 / APP 2) SIN RECARGA
 function cambiarModulo(numeroModulo) {
     document.getElementById('btn-tab1').classList.toggle('active', numeroModulo === 1);
     document.getElementById('btn-tab2').classList.toggle('active', numeroModulo === 2);
@@ -42,7 +44,6 @@ function cambiarModulo(numeroModulo) {
     window.history.pushState({}, '', nuevaURL);
 }
 
-// 3. ACTUALIZACIÓN VISIBLE AL CARGAR ARCHIVOS
 function actualizarArchivo(appNum) {
     const fileInput = document.getElementById(`file-app${appNum}`);
     const txtDisplay = document.getElementById(`txt-file${appNum}`);
@@ -59,7 +60,6 @@ function actualizarArchivo(appNum) {
     }
 }
 
-// 4. SISTEMA DE CIERRE DE SESIÓN SEGURO
 document.getElementById('btn-cerrar-sesion').onclick = async () => {
     if (confirm("¿Seguro que deseas salir de TuBingo Pro Suite?")) {
         await window._supabase.auth.signOut();
@@ -67,7 +67,6 @@ document.getElementById('btn-cerrar-sesion').onclick = async () => {
     }
 };
 
-// 5. COMPROBACIÓN INICIAL AL ENTRAR A LA PÁGINA
 window.onload = () => {
     verificarSesionSuite();
     
