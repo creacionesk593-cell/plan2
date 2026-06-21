@@ -1,0 +1,124 @@
+<!-- login.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Seguro - TuBingo Pro</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="auth-container">
+        <h1 id="auth-title">Iniciar Sesión</h1>
+        <p class="auth-subtitle">Suite de Procesamiento Profesional</p>
+        
+        <div id="msg-box" class="msg-box" style="display: none;"></div>
+
+        <!-- Formulario Login -->
+        <form id="form-login">
+            <div class="input-group">
+                <label>Correo Electrónico</label>
+                <input type="email" id="login-email" required autocomplete="username">
+            </div>
+            <div class="input-group">
+                <label>Contraseña</label>
+                <input type="password" id="login-pass" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-auth">Ingresar al Sistema</button>
+            <p class="toggle-link"><a href="#" id="link-olvido">¿Olvidaste tu contraseña?</a></p>
+        </form>
+
+        <!-- Formulario Recuperación -->
+        <form id="form-recuperar" style="display: none;">
+            <div class="input-group">
+                <label>Ingresa tu Correo Electrónico</label>
+                <input type="email" id="recuperar-email" required>
+            </div>
+            <button type="submit" class="btn-auth">Enviar Contraseña Temporal</button>
+            <p class="toggle-link"><a href="#" id="link-regresar-login">Volver al Login</a></p>
+        </form>
+
+        <!-- Formulario Cambiar Contraseña (Post Link Temporal) -->
+        <form id="form-cambiar" style="display: none;">
+            <div class="input-group">
+                <label>Nueva Contraseña Establecida</label>
+                <input type="password" id="nueva-pass" required minlength="8">
+            </div>
+            <button type="submit" class="btn-auth">Actualizar y Autenticar</button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { loginUsuario, solicitarContrasenaTemporal, actualizarContrasenaNueva } from './js/auth.js';
+        
+        const msgBox = document.getElementById('msg-box');
+        function mostrarMsg(text, type) {
+            msgBox.textContent = text;
+            msgBox.className = `msg-box ${type}`;
+            msgBox.style.display = 'block';
+        }
+
+        // Leer parámetros de URL para flujos de restauración o errores de suscripción
+        const params = new URLSearchParams(window.location.search);
+        if(params.get('action') === 'update_password') {
+            document.getElementById('auth-title').textContent = "Establecer Nueva Contraseña";
+            document.getElementById('form-login').style.display = 'none';
+            document.getElementById('form-cambiar').style.display = 'block';
+        } else if(params.get('error') === 'suscripcion_caducada') {
+            mostrarMsg("Tu suscripción ha expirado. Por favor, contacta a tu vendedor para renovar tu acceso.", "error");
+        } else if(params.get('error') === 'sin_suscripcion') {
+            mostrarMsg("Tu cuenta no cuenta con una licencia activa registrada aún.", "error");
+        }
+
+        // Alternadores de vista (Olvido de contraseña)
+        document.getElementById('link-olvido').onclick = (e) => {
+            e.preventDefault();
+            document.getElementById('form-login').style.display = 'none';
+            document.getElementById('form-recuperar').style.display = 'block';
+            document.getElementById('auth-title').textContent = "Recuperar Acceso";
+        };
+
+        document.getElementById('link-regresar-login').onclick = (e) => {
+            e.preventDefault();
+            document.getElementById('form-recuperar').style.display = 'none';
+            document.getElementById('form-login').style.display = 'block';
+            document.getElementById('auth-title').textContent = "Iniciar Sesión";
+        };
+
+        // Envíos de Formularios
+        document.getElementById('form-login').onsubmit = async (e) => {
+            e.preventDefault();
+            mostrarMsg("Validando credenciales criptográficas...", "success");
+            try {
+                const r = await loginUsuario(document.getElementById('login-email').value, document.getElementById('login-pass').value);
+                if(r === 'admin') window.location.href = 'admin.html';
+                else if(r === 'vendedor') window.location.href = 'vendedor.html';
+                else window.location.href = 'cliente.html';
+            } catch(err) { 
+                mostrarMsg("Credenciales incorrectas, usuario deshabilitado o sin plan activo.", "error"); 
+            }
+        };
+
+        document.getElementById('form-recuperar').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+                await solicitarContrasenaTemporal(document.getElementById('recuperar-email').value);
+                mostrarMsg("Si el correo está registrado, se ha enviado un enlace de acceso temporal.", "success");
+            } catch(err) { 
+                mostrarMsg("Error al procesar la solicitud de recuperación", "error"); 
+            }
+        };
+
+        document.getElementById('form-cambiar').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+                await actualizarContrasenaNueva(document.getElementById('nueva-pass').value);
+                mostrarMsg("Contraseña cambiada con éxito. Redirigiendo...", "success");
+                setTimeout(() => window.location.href = 'index.html', 2000);
+            } catch(err) { 
+                mostrarMsg("Token de recuperación expirado. Solicita un nuevo correo.", "error"); 
+            }
+        };
+    </script>
+</body>
+</html>
