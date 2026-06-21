@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Administrador Supremo</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="dashboard-body" style="overflow-y: auto; padding: 20px;">
+
+    <div class="top-nav" style="margin-bottom: 20px; border-radius: 8px;">
+        <span class="brand-title">👑 Consola de Administración Global</span>
+        <div class="nav-actions">
+            <span id="admin-display" style="color: #aaa; font-size: 13px;">Admin: Validando...</span>
+            <button id="btn-logout" class="btn-logout">Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <div class="auth-container" style="max-width: 100%; margin: 0 0 20px 0; display: flex; gap: 20px; flex-wrap: wrap;">
+        
+        <div style="flex: 1; min-width: 300px;">
+            <h3>Crear Nuevo Usuario de la Suite</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Da de alta administradores, vendedores o clientes.</p>
+            <form id="form-crear-usuario">
+                <div class="input-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="adm-email" required autocomplete="off">
+                </div>
+                <div class="input-group">
+                    <label>Contraseña Asignada</label>
+                    <input type="password" id="adm-pass" required minlength="8" autocomplete="off">
+                </div>
+                <div class="input-group">
+                    <label>Rol de Acceso en el Sistema</label>
+                    <select id="adm-rol" style="width: 100%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 8px;">
+                        <option value="cliente">👤 Cliente Final</option>
+                        <option value="vendedor">💼 Vendedor / Operador comercial</option>
+                        <option value="admin">👑 Administrador del Sistema</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-auth" style="background: linear-gradient(135deg, #007bff, #0056b3);">Crear Cuenta</button>
+            </form>
+        </div>
+
+        <div style="flex: 1; min-width: 300px;">
+            <h3>Anular y Forzar Nueva Contraseña</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Sobrescribe de inmediato la contraseña de cualquier usuario (Útil si el cliente no puede recuperarla solo).</p>
+            <form id="form-forzar-pass">
+                <div class="input-group">
+                    <label>Seleccionar Cuenta de Usuario</label>
+                    <select id="select-user-target" style="width: 100%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 8px;" required></select>
+                </div>
+                <div class="input-group">
+                    <label>Nueva Contraseña Forzada</label>
+                    <input type="text" id="nueva-pass-forzada" placeholder="Ej: Temp1234!" required minlength="8">
+                </div>
+                <button type="submit" class="btn-auth" style="background: linear-gradient(135deg, #dc3545, #bd2130);">Ejecutar Reseteo Inmediato</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="auth-container" style="max-width: 100%; margin: 0;">
+        <h3>Base de Datos de Usuarios y Suscripciones Globales</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left; font-size: 14px;">
+            <thead>
+                <tr style="border-bottom: 2px solid #333; color: #aaa;">
+                    <th style="padding: 10px;">Email</th>
+                    <th style="padding: 10px;">Rol</th>
+                    <th style="padding: 10px;">Asociado A (Vendedor)</th>
+                    <th style="padding: 10px;">Suscripción Vence</th>
+                    <th style="padding: 10px;">Estado Licencia</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-usuarios-master">
+                <tr>
+                    <td colspan="5" style="padding: 20px; text-align: center; color: #666;">Cargando registros del clúster...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { verificarSesionYRol, cerrarSesion } from './js/auth.js';
+        import { supabase } from './js/supabase-client.js';
+
+        let adminLogueado = null;
+
+        window.onload = async () => {
+            // Protección de ruta a nivel estructural OWASP: Solo permite rol 'admin'
+            adminLogueado = await verificarSesionYRol(['admin']);
+            if (adminLogueado) {
+                document.getElementById('admin-display').textContent = `Admin: ${adminLogueado.email}`;
+                cargarEcosistemaGlobal();
+            }
+        };
+
+        document.getElementById('btn-logout').onclick = cerrarSesion;
+
+        // Cargar todos los usuarios del sistema cruzando datos de perfiles
+        async function cargarEcosistemaGlobal() {
+            const { data: usuarios, error } = await supabase
+                .from('perfiles')
+                .select('*')
+                .order('rol', { ascending: true });
+
+            if (error) return alert("Error al consultar la base de datos centralizada.");
+
+            const tbody = document.getElementById('tabla-usuarios-master');
+            const selectTarget = document.getElementById('select-user-target');
+            
+            tbody.innerHTML = '';
+            selectTarget.innerHTML = '<option value="" disabled selected>-- Selecciona un usuario --</option>';
+
+            usuarios.forEach(u => {
+                // Rellenar Select de reseteo (No listarse a sí mismo para evitar auto-bloqueos)
+                if (u.id !== adminLogueado.id) {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = `[${u.rol.toUpperCase()}] ${u.email}`;
+                    selectTarget.appendChild(opt);
+                }
+
+                // Calcular estado de licencia por tiempo real
+                const vence = u.suscripcion_vence ? new Date(u.suscripcion_vence) : null;
+                const activo = vence && vence > new Date();
+                
+                let estadoBadge = '⚪ Operador/Admin';
+                if (u.rol === 'cliente') {
+                    estadoBadge = activo ? '🟢 Licencia Activa' : (vence ? '🔴 Expirada' : '🟡 Sin Suscripción');
+                }
+
+                // Generar fila
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = "1px solid #222";
+                tr.style.background = u.rol === 'admin' ? 'rgba(255,255,255,0.02)' : 'none';
+                
+                tr.innerHTML = `
+                    <td style="padding: 10px; font-weight: 500;">${u.email} ${u.id === adminLogueado.id ? '<span style="color:#888; font-size:10px;">(Tú)</span>' : ''}</td>
+                    <td style="padding: 10px;"><span style="padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: ${u.rol === 'admin' ? '#dc3545' : (u.rol === 'vendedor' ? '#8b5cf6' : '#007bff')}; color:#fff;">${u.rol.toUpperCase()}</span></td>
+                    <td style="padding: 10px; color: #888; font-size: 12px;">${u.creado_por || 'Sistema Directo'}</td>
+                    <td style="padding: 10px; color: #aaa;">${vence ? vence.toLocaleString() : 'N/A'}</td>
+                    <td style="padding: 10px; font-weight: bold; font-size: 12px;">${estadoBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Crear cualquier tipo de cuenta en el ecosistema (Admin, Vendedor o Cliente)
+        document.getElementById('form-crear-usuario').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('adm-email').value.trim();
+            const pass = document.getElementById('adm-pass').value;
+            const rol = document.getElementById('adm-rol').value;
+
+            // Registro en auth de Supabase inyectando el metadato del rol para el trigger SQL
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password: pass,
+                options: { data: { rol_inicial: rol } }
+            });
+
+            if (error) {
+                alert("Error crítico en el alta de credenciales: " + error.message);
+            } else {
+                alert(`Cuenta de tipo [${rol.toUpperCase()}] creada exitosamente en la base de datos.`);
+                document.getElementById('form-crear-usuario').reset();
+                cargarEcosistemaGlobal();
+            }
+        };
+
+        // Forzar cambio de contraseña de un cliente por un administrador vía RPC seguro
+        document.getElementById('form-forzar-pass').onsubmit = async (e) => {
+            e.preventDefault();
+            const targetId = document.getElementById('select-user-target').value;
+            const nuevaClave = document.getElementById('nueva-pass-forzada').value;
+
+            if (!targetId) return alert("Por favor, selecciona una cuenta válida de la lista.");
+
+            if (!confirm("¿Estás completamente seguro de que deseas sobrescribir y forzar la nueva contraseña en este usuario? Se aplicará de forma instantánea.")) return;
+
+            // Invocación del RPC criptográfico securizado con definer en Supabase
+            const { data, error } = await supabase.rpc('admin_reset_password_user', {
+                target_user_id: targetId,
+                new_password: nuevaClave
+            });
+
+            if (error) {
+                alert("Error de privilegios o ejecución de RPC: " + error.message);
+            } else {
+                alert("¡Contraseña forzada con éxito! El usuario ya puede iniciar sesión con la nueva clave.");
+                document.getElementById('form-forzar-pass').reset();
+                cargarEcosistemaGlobal();
+            }
+        };
+    </script>
+</body>
+</html>
