@@ -1,33 +1,49 @@
-// js/admin.js
-import { supabase } from './supabase-client.js';
+// Reemplaza la función que guarda el usuario en tu admin.html por esta:
+document.getElementById('tu-formulario-crear').onsubmit = async (e) => {
+    e.preventDefault();
 
-export async function listarUsuariosRegistrados() {
-    const { data, error } = await supabase
-        .from('perfiles')
-        .select('*')
-        .order('creado_en', { ascending: false });
-    if (error) throw error;
-    return data;
-}
+    const emailInput = document.getElementById('input-correo-cliente'); // Revisa que coincida con tu ID de HTML
+    const passInput = document.getElementById('input-clave-cliente');   // Revisa que coincida con tu ID de HTML
+    const rolSelect = document.getElementById('select-rol-cliente');    // Revisa que coincida con tu ID de HTML
+    const btnCrear = e.target.querySelector('button');
 
-export async function crearNuevoUsuario(email, password, rol) {
-    // Llama a una Edge Function segura de Supabase o crea el registro en la tabla de auth indirectamente
-    // Para entornos frontend puros sin servidor, se usa el cliente de gestión o una tabla de pre-registro segura
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { rol_inicial: rol } }
-    });
-    if (error) throw error;
-    return data;
-}
+    const email = emailInput.value.trim();
+    const pass = passInput.value;
+    const rol = rolSelect.value; // 'vendedor' o 'cliente'
 
-export async function forzarCambioContrasenaUsuario(userId, nuevaContrasena) {
-    // Utiliza RPC criptográfico configurado en la base de datos para saltarse la restricción del cliente local
-    const { data, error } = await supabase.rpc('admin_reset_password_user', {
-        target_user_id: userId,
-        new_password: nuevaContrasena
-    });
-    if (error) throw error;
-    return true;
-}
+    btnCrear.textContent = "Procesando registro...";
+    btnCrear.disabled = true;
+
+    try {
+        // 🔥 AQUÍ ESTÁ EL TRUCO: Llamamos a la función RPC. 
+        // Esto crea al usuario en la base de datos sin cerrar tu sesión actual.
+        const { data, error } = await _supabase.rpc('crear_usuario_desde_admin', {
+            p_email: email,
+            p_password: pass,
+            p_rol: rol
+        });
+
+        if (error) throw error;
+
+        if (data.startsWith('ERROR')) {
+            alert(data);
+        } else {
+            alert("¡Usuario creado con éxito! El cliente ya puede iniciar sesión.");
+            // Limpiar campos del formulario
+            emailInput.value = '';
+            passInput.value = '';
+            
+            // Función opcional si tienes una tabla abajo para refrescar los datos en vivo
+            if (typeof cargarUsuariosDeLaSuite === 'function') {
+                cargarUsuariosDeLaSuite();
+            }
+        }
+
+    } catch (err) {
+        console.error("Error al crear usuario:", err);
+        alert("No se pudo crear la cuenta: " + err.message);
+    } finally {
+        btnCrear.textContent = "Crear Cuenta";
+        btnCrear.disabled = false;
+    }
+};
