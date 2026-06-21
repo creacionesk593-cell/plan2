@@ -1,165 +1,99 @@
-<!-- cliente.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Cliente</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>TuBingo Pro Suite - Entorno de Trabajo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #121214; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; }
+        nav { background: #1a1a1e; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #29292e; }
+        .nav-links { display: flex; gap: 15px; align-items: center; }
+        .nav-brand { color: #00e676; font-size: 18px; font-weight: bold; margin-right: 20px; }
+        .nav-btn { color: #a4a4a8; text-decoration: none; font-weight: 500; padding: 8px 12px; border-radius: 4px; border: 1px solid transparent; cursor: pointer; background: transparent; font-size: 14px; transition: all 0.2s; }
+        .nav-btn:hover { background: #29292e; color: #ffffff; }
+        .nav-btn.active { background: #29292e; color: #00e676; font-weight: bold; border-color: #00e676; }
+        .btn-admin { display: none; background: #0071e3; color: white; text-decoration: none; font-weight: bold; padding: 8px 16px; border-radius: 4px; border: 1px solid #005bb5; font-size: 14px; }
+        .btn-admin:hover { background: #005bb5; }
+        .btn-logout { background: #ff3366; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .btn-logout:hover { background: #e02454; }
+        .workspace { padding: 40px; display: flex; justify-content: center; align-items: center; flex: 1; }
+        .app-card { background: #1a1a1e; padding: 35px; border-radius: 10px; border: 1px solid #29292e; width: 100%; max-width: 700px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; }
+        .app-card.active { display: block; }
+        h2 { text-align: center; margin-bottom: 8px; color: #ffffff; font-size: 22px; }
+        .subtitle { text-align: center; color: #a4a4a8; font-size: 14px; margin-bottom: 25px; }
+        .dropzone { border: 2px dashed #29292e; padding: 30px; text-align: center; border-radius: 8px; background: #202024; cursor: pointer; transition: border-color 0.2s; margin-bottom: 20px; }
+        .dropzone:hover { border-color: #00e676; }
+        .control-group { margin-bottom: 20px; }
+        .control-label { display: flex; justify-content: space-between; color: #e1e1e6; font-size: 14px; margin-bottom: 8px; }
+        .control-label span.badge { background: #0071e3; color: white; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        input[type="range"] { width: 100%; accent-color: #00e676; margin-bottom: 5px; cursor: pointer; }
+        .btn-execute { width: 100%; padding: 14px; background: #3a3a3c; color: #e1e1e6; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: not-allowed; transition: background 0.2s; }
+        .btn-execute.ready { background: #00e676; color: #0f0f11; cursor: pointer; }
+        .btn-execute.ready:hover { background: #00c853; }
+        .status-bar { background: #202024; border-left: 4px solid #0071e3; padding: 12px; border-radius: 4px; font-size: 14px; color: #a4a4a8; margin-top: 15px; text-align: center; }
+    </style>
 </head>
-<body class="dashboard-body">
-    
-    <!-- Barra de Navegación Superior con visualizador de Plan y Vencimiento -->
-    <div class="top-nav">
-        <span class="brand-title">TuBingo Pro Suite</span>
-        <div class="nav-actions">
-            <span id="user-display">Validando licencia en la nube...</span>
-            <button id="btn-logout" class="btn-logout">Cerrar Sesión</button>
+<body>
+    <nav>
+        <div class="nav-links">
+            <span class="nav-brand">TuBingo Pro Suite</span>
+            <button id="btn-tab1" class="nav-btn active" onclick="cambiarModulo(1)">⚡ App 1: Vectorizador Pro</button>
+            <button id="btn-tab2" class="nav-btn" onclick="cambiarModulo(2)">🎯 App 2: Extractor de Bingo</button>
+            <a href="admin.html" id="btn-nav-admin" class="btn-admin">👑 Panel Administrador</a>
         </div>
-    </div>
-
-    <!-- Pestañas para conmutar Apps sin recargar el ecosistema -->
-    <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchApp('app1')">⚡ App 1: Vectorizador Pro</button>
-        <button class="tab-btn" onclick="switchApp('app2')">🎯 App 2: Extractor de Bingo</button>
-    </div>
-
-    <!-- Barra lateral para inyectar configuraciones JSON exclusivas en la App 2 -->
-    <div id="wrapper-app2-configs" class="config-sidebar" style="display:none;">
-        <h3>⚙️ Perfiles de Configuración</h3>
-        <p style="font-size:11px; color:#888;">Selecciona una plantilla base o personalizada:</p>
-        
-        <div class="section-list">
-            <h4>Plantillas Globales (Por Defecto)</h4>
-            <div id="lista-configs-globales" class="list-container-mini">Cargando de fábrica...</div>
+        <div>
+            <span id="user-tag" style="color: #a4a4a8; font-size: 14px; margin-right: 15px;">Estableciendo sesión...</span>
+            <button class="btn-logout" id="btn-cerrar-sesion">Cerrar Sesión</button>
         </div>
+    </nav>
 
-        <div class="section-list">
-            <h4>Mis Configuraciones</h4>
-            <div id="lista-configs-propias" class="list-container-mini">No has guardado perfiles aún.</div>
-            <div class="save-box">
-                <input type="text" id="nueva-config-name" placeholder="Nombre de mi config">
-                <button id="btn-save-current-config" class="btn-action-sm">Guardar Config Actual</button>
+    <div class="workspace">
+        <div id="modulo-app1" class="app-card active">
+            <h2>⚡ PDF Vectorizador Avanzado para Escaneos</h2>
+            <p class="subtitle">Aislamiento de píxeles oscuros sobre lienzos PNG transparentes</p>
+            <div class="dropzone" onclick="document.getElementById('file-app1').click()">
+                <input type="file" id="file-app1" style="display:none" accept=".pdf,.png,.jpg,.jpeg" onchange="actualizarArchivo(1)">
+                <p id="txt-file1" style="color: #e1e1e6;">📄 Seleccionar o arrastrar archivo PDF/Imagen...</p>
             </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <label>Sensibilidad de Trazo</label>
+                    <span class="badge" id="val-sens">120</span>
+                </div>
+                <input type="range" min="0" max="255" value="120" oninput="document.getElementById('val-sens').textContent = this.value">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <label>Fuerza del Vector</label>
+                    <span class="badge" id="val-fuerza">Nivel 2</span>
+                </div>
+                <input type="range" min="1" max="5" value="2" oninput="document.getElementById('val-fuerza').textContent = 'Nivel ' + this.value">
+            </div>
+            <button class="btn-execute" id="btn-run1" disabled>Vectorizar y Limpiar Transparente</button>
+            <div class="status-bar" id="status1">Esperando archivo para procesar...</div>
+        </div>
+
+        <div id="modulo-app2" class="app-card">
+            <h2>🎯 Extractor Analítico de Cartillas de Bingo</h2>
+            <p class="subtitle">Segmentación por cuadrantes mediante OCR de alta precisión y volcado directo a Excel</p>
+            <div class="dropzone" onclick="document.getElementById('file-app2').click()">
+                <input type="file" id="file-app2" style="display:none" accept=".pdf" onchange="actualizarArchivo(2)">
+                <p id="txt-file2" style="color: #e1e1e6;">📄 Seleccionar archivo PDF con Cartillas de Bingo...</p>
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <label>Optimización de CPU y RAM</label>
+                    <span style="color: #00e676; font-size: 13px; font-weight: 500;">Aceleración por Hardware Activa</span>
+                </div>
+            </div>
+            <button class="btn-execute" id="btn-run2" disabled>Escanear y Exportar a Excel (.xlsx)</button>
+            <div class="status-bar" id="status2">Carga un documento PDF para iniciar el reconocimiento.</div>
         </div>
     </div>
 
-    <!-- Contenedor del Iframe con Sandbox OWASP de alta seguridad -->
-    <div class="app-viewport">
-        <iframe id="iframe-app" src="app1.html" sandbox="allow-scripts allow-same-origin allow-downloads allow-modals"></iframe>
-    </div>
-
-    <script type="module">
-        import { verificarSesionYRol, cerrarSesion } from './js/auth.js';
-        import { obtenerConfigsGlobales, obtenerConfigsPropias, guardarConfigCliente } from './js/config-manager.js';
-
-        let usuarioActivo = null;
-
-        window.onload = async () => {
-            // El core js/auth.js valida el tiempo y redirige automáticamente a login si caducó
-            usuarioActivo = await verificarSesionYRol(['cliente', 'admin']);
-            
-            if(usuarioActivo) {
-                // Formatear fecha legible localmente
-                const fechaVence = new Date(usuarioActivo.suscripcion_vence);
-                const planTraducido = usuarioActivo.plan_activo === 'vitalicio' ? 'Mil Años (Vitalicio)' : usuarioActivo.plan_activo;
-                
-                // Renderizar la información de suscripción del cliente de forma segura en la cabecera
-                document.getElementById('user-display').innerHTML = `
-                    👤 <span style="color:#fff; font-weight:600;">${usuarioActivo.email}</span> 
-                    | Plan: <span style="color:#007bff; font-weight:bold;">${planTraducido.toUpperCase()}</span> 
-                    | Vence: <span style="color:#28a745; font-weight:bold;">${fechaVence.toLocaleDateString()} ${fechaVence.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                `;
-                
-                // Cargar repositorios de configuraciones para App 2
-                cargarListasConfiguracion();
-            }
-        };
-
-        document.getElementById('btn-logout').onclick = cerrarSesion;
-
-        // Conmutador dinámico de aplicaciones
-        window.switchApp = function(app) {
-            const iframe = document.getElementById('iframe-app');
-            const btns = document.querySelectorAll('.tab-btn');
-            const sidebar = document.getElementById('wrapper-app2-configs');
-            
-            btns.forEach(b => b.classList.remove('active'));
-            if(app === 'app1') {
-                btns[0].classList.add('active');
-                sidebar.style.display = 'none';
-                iframe.src = "app1.html";
-            } else {
-                btns[1].classList.add('active');
-                sidebar.style.display = 'block';
-                iframe.src = "app2.html";
-            }
-        };
-
-        // Consumo de datos JSON estructurados por cliente
-        async function cargarListasConfiguracion() {
-            if(!usuarioActivo) return;
-            
-            // 1. Cargar e Inyectar Configuraciones de Fábrica (Globales)
-            const globales = await obtenerConfigsGlobales();
-            const containerG = document.getElementById('lista-configs-globales');
-            containerG.innerHTML = '';
-            globales.forEach(g => {
-                const div = document.createElement('div');
-                div.className = "config-item-row";
-                div.textContent = g.nombre_config;
-                div.onclick = () => inyectarConfigEnIframe(g.json_data);
-                containerG.appendChild(div);
-            });
-
-            // 2. Cargar e Inyectar Configuraciones Propias guardadas por el Cliente
-            const propias = await obtenerConfigsPropias(usuarioActivo.id);
-            const containerP = document.getElementById('lista-configs-propias');
-            containerP.innerHTML = propias.length === 0 ? '<p style="font-size:11px;padding:5px;color:#666;">Sin perfiles guardados.</p>' : '';
-            propias.forEach(p => {
-                const div = document.createElement('div');
-                div.className = "config-item-row personal";
-                div.textContent = p.nombre_config;
-                div.onclick = () => inyectarConfigEnIframe(p.json_data);
-                containerP.appendChild(div);
-            });
-        }
-
-        // Web Messaging API segura (Canal Inter-Iframe aprobado por OWASP)
-        function inyectarConfigEnIframe(jsonData) {
-            const iframe = document.getElementById('iframe-app');
-            iframe.contentWindow.postMessage({
-                tipo: 'INYECTAR_CONFIG_BINGO',
-                data: jsonData
-            }, '*');
-        }
-
-        // Solicitar y guardar el estado JSON actual directamente de la ventana de App2
-        document.getElementById('btn-save-current-config').onclick = () => {
-            const name = document.getElementById('nueva-config-name').value.trim();
-            if(!name) return alert("Escribe un nombre para identificar tu perfil de configuración.");
-            
-            const iframe = document.getElementById('iframe-app');
-            iframe.contentWindow.postMessage({ tipo: 'SOLICITAR_CONFIG_ACTUAL' }, '*');
-            
-            window.addEventListener('message', function responder(e) {
-                if(e.data && e.data.tipo === 'RESPUESTA_CONFIG_ACTUAL') {
-                    window.removeEventListener('message', responder);
-                    guardarConfigEnNube(name, e.data.config);
-                }
-            });
-        };
-
-        async function guardarConfigEnNube(nombre, jsonConfig) {
-            try {
-                await guardarConfigCliente(usuarioActivo.id, nombre, jsonConfig);
-                document.getElementById('nueva-config-name').value = '';
-                cargarListasConfiguracion();
-                alert("¡Perfil guardado de forma segura en tu nube personal!");
-            } catch(err) { 
-                alert("Error de validación estructural: " + err.message); 
-            }
-        }
-    </script>
+    <script src="js/config.js"></script>
+    <script src="js/cliente.js"></script>
 </body>
 </html>
